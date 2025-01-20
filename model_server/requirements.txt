@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+gliner==0.1.3
+requests
+numpy
+pydantic
