@@ -27,7 +27,7 @@ test_cases = [
         "labels": ["bullish", "bearish", "neutral"]
     }
 ]
-
+    
 # Make requests for each test case
 for i, payload in enumerate(test_cases, 1):
     try:
