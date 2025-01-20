@@ -20,13 +20,18 @@ A FastAPI-based service that provides two main functionalities:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/stock-market-sentiment-api.git
-cd stock-market-sentiment-api
+git clone <repository-url>
+cd model_server
 ```
 
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
+```
+
+3. Download required models:
+```bash
+python download_models.py
 ```
 
 ## Usage
@@ -58,10 +63,38 @@ response = requests.post(url, json=payload)
 print(response.json())
 ```
 
+## Docker Support
+
+Build and run the application using Docker:
+
+```bash
+docker build -t model-server .
+docker run -p 8000:8000 model-server
+```
+
 ## Testing
 
-Run the test suite:
+The project includes comprehensive test suites:
+
 ```bash
-python test_classification.py  # For sentiment analysis tests
-python test_api.py            # For NER tests
+# Run all tests
+python -m pytest
+
+# Individual test files
+python test_classification.py  # Sentiment analysis tests
+python test_gliner.py         # GLiNER model tests
+python test_api.py            # API endpoint tests
+python test_stock_sentiment.py # Stock sentiment tests
 ```
+
+## Requirements
+
+Key dependencies:
+- fastapi
+- uvicorn
+- gliner==0.1.3
+- requests
+- numpy
+- pydantic
+
+For a complete list of dependencies, see `requirements.txt`.
