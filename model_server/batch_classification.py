@@ -6,6 +6,7 @@ from pathlib import Path
 
 class BSEAnnouncementClassifier:
     def __init__(self):
+        self.required_columns = ['HEADLINE', 'DESCRIPTION_1', 'ANNOUNCEMENT_TYPE', 'COMPANY_NAME', 'DT']
         self.patterns = {
             'Financial Results': [
                 'financial result', 'quarterly result', 'annual result',
@@ -58,6 +59,13 @@ class BSEAnnouncementClassifier:
             ]
         }
         
+    def validate_file(self, df):
+        """Validate if the DataFrame has required columns"""
+        missing_columns = [col for col in self.required_columns if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+        return True
+        
     def get_combined_text(self, row):
         """Combine relevant text fields for better classification"""
         headline = str(row['HEADLINE']).lower()
@@ -84,7 +92,12 @@ class BSEAnnouncementClassifier:
     def process_file(self, input_file, output_dir=None):
         """Process a single file"""
         try:
+            print(f"\nProcessing file: {input_file}")
             df = pd.read_csv(input_file)
+            
+            # Validate file format
+            self.validate_file(df)
+            
             df['Row_Classification'] = df.apply(self.classify_row, axis=1)
             
             # Generate statistics
@@ -96,8 +109,11 @@ class BSEAnnouncementClassifier:
             
             return df, stats
             
+        except ValueError as ve:
+            print(f"Error processing file {input_file}: {str(ve)}")
+            return None, None
         except Exception as e:
-            print(f"Error processing file {input_file}: {str(e)}")
+            print(f"Unexpected error processing file {input_file}: {str(e)}")
             return None, None
 
     def process_batch(self, input_dir, output_dir):
@@ -108,18 +124,25 @@ class BSEAnnouncementClassifier:
         os.makedirs(output_dir, exist_ok=True)
         
         # Process all CSV files in the input directory
-        for file in os.listdir(input_dir):
-            if file.endswith('.csv'):
-                input_file = os.path.join(input_dir, file)
-                df, stats = self.process_file(input_file, output_dir)
-                if df is not None:
-                    results.append({
-                        'file': file,
-                        'statistics': stats
-                    })
+        csv_files = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
+        print(f"\nFound {len(csv_files)} CSV files to process")
+        
+        for file in csv_files:
+            input_file = os.path.join(input_dir, file)
+            df, stats = self.process_file(input_file, output_dir)
+            if df is not None:
+                results.append({
+                    'file': file,
+                    'statistics': stats
+                })
         
         # Save batch summary
-        self.save_batch_summary(results, output_dir)
+        if results:
+            self.save_batch_summary(results, output_dir)
+            print(f"\nSuccessfully processed {len(results)} files")
+        else:
+            print("\nNo files were successfully processed")
+            
         return results
 
     def generate_statistics(self, df):
@@ -150,11 +173,13 @@ class BSEAnnouncementClassifier:
         # Save classified data
         output_csv = os.path.join(output_dir, f"{base_name}_classified_{timestamp}.csv")
         df.to_csv(output_csv, index=False)
+        print(f"Saved classified data to: {output_csv}")
         
         # Save statistics
         stats_file = os.path.join(output_dir, f"{base_name}_stats_{timestamp}.json")
         with open(stats_file, 'w') as f:
             json.dump(stats, f, indent=4)
+        print(f"Saved statistics to: {stats_file}")
 
     def save_batch_summary(self, results, output_dir):
         """Save summary of batch processing"""
@@ -162,6 +187,7 @@ class BSEAnnouncementClassifier:
         summary_file = os.path.join(output_dir, f"batch_summary_{timestamp}.json")
         with open(summary_file, 'w') as f:
             json.dump(results, f, indent=4)
+        print(f"Saved batch summary to: {summary_file}")
 
 def main():
     # Initialize classifier
@@ -186,12 +212,13 @@ def main():
     input_dir = "."  # Current directory
     batch_results = classifier.process_batch(input_dir, output_dir)
     
-    print("\nBatch Processing Summary:")
-    print("======================")
-    for result in batch_results:
-        print(f"\nFile: {result['file']}")
-        for category, data in result['statistics']['categories'].items():
-            print(f"{category}: {data['count']} announcements ({data['percentage']}%)")
+    if batch_results:
+        print("\nBatch Processing Summary:")
+        print("======================")
+        for result in batch_results:
+            print(f"\nFile: {result['file']}")
+            for category, data in result['statistics']['categories'].items():
+                print(f"{category}: {data['count']} announcements ({data['percentage']}%)")
 
 if __name__ == "__main__":
     main()
