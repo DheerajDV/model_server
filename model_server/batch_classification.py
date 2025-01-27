@@ -75,30 +75,66 @@ class BSEAnnouncementClassifier:
 
     def classify_row(self, row):
         """Classify a single announcement"""
+        start_time = datetime.now()
+        
         text = self.get_combined_text(row)
         
         # Check each pattern
         for category, pattern_list in self.patterns.items():
             if any(pattern in text for pattern in pattern_list):
-                return category
+                end_time = datetime.now()
+                classification_time = (end_time - start_time).total_seconds() * 1000  # Convert to milliseconds
+                return category, classification_time
                 
         # Special case for board meetings with financial results
         if any(term in text for term in self.patterns['Board Meeting']):
             if any(term in text for term in self.patterns['Financial Results']):
-                return 'Financial Results - Board Meeting'
+                end_time = datetime.now()
+                classification_time = (end_time - start_time).total_seconds() * 1000
+                return 'Financial Results - Board Meeting', classification_time
         
-        return 'Other Announcements'
+        end_time = datetime.now()
+        classification_time = (end_time - start_time).total_seconds() * 1000
+        return 'Other Announcements', classification_time
 
     def process_file(self, input_file, output_dir=None):
         """Process a single file"""
         try:
             print(f"\nProcessing file: {input_file}")
+            print("=" * 50)
             df = pd.read_csv(input_file)
             
             # Validate file format
             self.validate_file(df)
             
-            df['Row_Classification'] = df.apply(self.classify_row, axis=1)
+            print("\nClassifying announcements...")
+            # Track classification times
+            classification_times = []
+            classifications = []
+            
+            # Classify each row and track time
+            total_rows = len(df)
+            for idx, row in df.iterrows():
+                classification, time_taken = self.classify_row(row)
+                classifications.append(classification)
+                classification_times.append(time_taken)
+            
+            df['Row_Classification'] = classifications
+            
+            # Calculate and display timing statistics
+            avg_time = sum(classification_times) / len(classification_times)
+            max_time = max(classification_times)
+            min_time = min(classification_times)
+            total_time = sum(classification_times)
+            
+            print("\nClassification Timing Statistics:")
+            print("-" * 30)
+            print(f"Total rows processed: {total_rows}")
+            print(f"Total classification time: {total_time:.2f} ms ({total_time/1000:.2f} seconds)")
+            print(f"Average time per row: {avg_time:.2f} ms")
+            print(f"Maximum time for a row: {max_time:.2f} ms")
+            print(f"Minimum time for a row: {min_time:.2f} ms")
+            print("-" * 30)
             
             # Generate statistics
             stats = self.generate_statistics(df)
